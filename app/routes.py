@@ -60,3 +60,32 @@ def create_ticket():
     db.session.commit()
 
     return jsonify({"message": "Ticket created", "ticket_id": ticket.id}), 201
+
+
+@main.route("/tickets", methods=["GET"])
+@jwt_required()
+def get_tickets():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if user.role == "EMPLOYEE":
+        tickets = Ticket.query.filter_by(created_by=user.id).all()
+
+    elif user.role == "ENGINEER":
+        tickets = Ticket.query.filter_by(assigned_to=user.id).all()
+
+    else: #ADMIN or MANAGER
+        tickets = Ticket.query.all()
+
+    result = []
+
+    for ticket in tickets:
+        result.append({
+            "id": ticket.id,
+            "title": ticket.title,
+            "status": ticket.status,
+            "created_by": ticket.created_by,
+            "assigned_to": ticket.assigned_to
+        })
+
+    return jsonify(result), 200
