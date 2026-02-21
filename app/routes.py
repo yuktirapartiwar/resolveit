@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token
-from app.models import User
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from app.models import User, Ticket
 from app import db
 
 main = Blueprint("main", __name__)
@@ -37,3 +37,26 @@ def login():
     access_token = create_access_token(identity = user.id)
 
     return jsonify({"access_token": access_token}), 200
+
+
+@main.route("/tickets", methods=["POST"])
+@jwt_required()
+def create_ticket():
+    data = request.get_json()
+    user_id = get_jwt_identity()
+
+    user = User.query.get(user_id)
+
+    if user.role != "EMPLOYEE":
+        return jsonify({"error": "Only employees can create tickets"}), 403
+
+    ticket = Ticket(
+        title = data["title"],
+        description = data["description"],
+        created_by = user.id
+    )
+
+    db.session.add(ticket)
+    db.session.commit()
+
+    return jsonify({"message": "Ticket created", "ticket_id": ticket.id}), 201
